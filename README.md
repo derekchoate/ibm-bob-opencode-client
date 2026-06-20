@@ -13,14 +13,14 @@ A TypeScript/JavaScript provider that integrates **IBM BOB** as an LLM model sou
 ## Installation
 
 ```bash
-npm install @derek/ibm-bob-provider
+npm install @derekchoate/ibm-bob-provider
 ```
 
 Or add it to your OpenCode project:
 
 ```bash
 cd /path/to/opencode
-npm install @derek/ibm-bob-provider
+npm install @derekchoate/ibm-bob-provider
 ```
 
 ## Configuration
@@ -43,7 +43,7 @@ Add the IBM BOB provider to your OpenCode configuration (`~/.opencode.json` or p
 {
   "provider": {
     "bob": {
-      "type": "@derek/ibm-bob-provider",
+      "type": "@derekchoate/ibm-bob-provider",
       "config": {
         "apiKey": "${BOB_API_KEY}",
         "apiBaseUrl": "https://bob-api.ibm.com/v1",
@@ -60,7 +60,7 @@ Add the IBM BOB provider to your OpenCode configuration (`~/.opencode.json` or p
 ### Programmatic Usage
 
 ```typescript
-import { BobProvider, createBobProvider } from '@derek/ibm-bob-provider';
+import { BobProvider, createBobProvider } from '@derekchoate/ibm-bob-provider';
 
 // Using the class directly
 const provider = new BobProvider({

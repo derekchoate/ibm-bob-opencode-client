@@ -1,5 +1,5 @@
 {
-  "name": "@derek/ibm-bob-provider",
+  "name": "@derekchoate/ibm-bob-provider",
   "version": "0.1.0",
   "description": "IBM BOB provider for OpenCode - LLM Model Provider",
   "main": "dist/index.js",
