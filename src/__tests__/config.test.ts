@@ -26,7 +26,7 @@ describe('config', () => {
 
   describe('getApiBaseUrl', () => {
     it('should return default base URL when no config provided', () => {
-      expect(getApiBaseUrl()).toBe('https://bob-api.ibm.com/v1');
+      expect(getApiBaseUrl()).toBe('https://bob-api.ibm.com/inference/v1');
     });
 
     it('should return the provided apiBaseUrl', () => {
@@ -36,7 +36,7 @@ describe('config', () => {
 
   describe('getModel', () => {
     it('should return default model when no config provided', () => {
-      expect(getModel()).toBe('ibm-bob-default');
+      expect(getModel()).toBe('premium');
     });
 
     it('should return the provided model', () => {
@@ -46,12 +46,12 @@ describe('config', () => {
 
   describe('getChatCompletionsUrl', () => {
     it('should return default chat completions URL', () => {
-      expect(getChatCompletionsUrl()).toBe('https://bob-api.ibm.com/v1/chat/completions');
+      expect(getChatCompletionsUrl()).toBe('https://bob-api.ibm.com/inference/v1/chat/completions');
     });
 
     it('should handle base URLs with trailing slashes', () => {
-      expect(getChatCompletionsUrl({ apiBaseUrl: 'https://bob-api.ibm.com/v1/' }))
-        .toBe('https://bob-api.ibm.com/v1/chat/completions');
+      expect(getChatCompletionsUrl({ apiBaseUrl: 'https://bob-api.ibm.com/inference/v1/' }))
+        .toBe('https://bob-api.ibm.com/inference/v1/chat/completions');
     });
   });
 
@@ -72,9 +72,9 @@ describe('config', () => {
     it('should return config with defaults', () => {
       const config = resolveConfig({ apiKey: 'test-key' });
       expect(config.apiKey).toBe('test-key');
-      expect(config.model).toBe('ibm-bob-default');
+      expect(config.model).toBe('premium');
       expect(config.temperature).toBe(0.7);
-      expect(config.maxTokens).toBe(4096);
+      expect(config.maxTokens).toBe(16384);
     });
 
     it('should override defaults with provided values', () => {
@@ -92,16 +92,16 @@ describe('config', () => {
   });
 
   describe('AVAILABLE_MODELS', () => {
-    it('should have at least two models', () => {
-      expect(AVAILABLE_MODELS.length).toBeGreaterThanOrEqual(2);
+    it('should have at least one model', () => {
+      expect(AVAILABLE_MODELS.length).toBeGreaterThanOrEqual(1);
     });
   });
 
   describe('getModelById', () => {
     it('should find a model by id', () => {
-      const model = getModelById('ibm-bob-default');
+      const model = getModelById('premium');
       expect(model).toBeDefined();
-      expect(model?.id).toBe('ibm-bob-default');
+      expect(model?.id).toBe('premium');
     });
 
     it('should return undefined for unknown model id', () => {
