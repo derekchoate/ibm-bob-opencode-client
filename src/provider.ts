@@ -11,7 +11,6 @@ import {
   ChatCompletionRequest,
   ChatCompletionResponse,
   ChatCompletionChunkResponse,
-  Message,
   ChatOptions,
   CompletionResult,
   ProviderInfo,
@@ -101,7 +100,7 @@ export class BobProvider {
     const url = getChatCompletionsUrl(this.config);
 
     let fullContent = '';
-    let promptTokens = 0;
+    const promptTokens = 0;
     let completionTokens = 0;
 
     await this.streamResponse(url, request, (chunk) => {
