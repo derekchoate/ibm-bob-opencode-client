@@ -3,7 +3,7 @@
   "compilerOptions": {
     /* Language Settings */
     "target": "ES2022",
-    "module": "commonjs",
+    "module": "NodeNext",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "outDir": "./dist",
     "rootDir": "./src",
@@ -21,7 +21,7 @@
     "removeComments": false,
 
     /* Module Resolution */
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "isolatedModules": true,
 
     /* Additional Checks */

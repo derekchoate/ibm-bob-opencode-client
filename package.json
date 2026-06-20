@@ -8,6 +8,10 @@
     "dist/",
     "README.md"
   ],
+  "optionalDependencies": {
+    "keytar": "^7.9.0",
+    "open": "^8.4.2"
+  },
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build",
@@ -31,7 +35,7 @@
     "node": ">=18.0.0 <=24.x"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
+    "@types/jest": "^29.5.14",
     "@types/node": "^20.11.0",
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.61.1",
