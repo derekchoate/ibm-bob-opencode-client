@@ -8,9 +8,9 @@ import { BobProviderConfig, BobModel } from './types';
 // Default Configuration
 // ============================================================================
 
-const DEFAULT_CONFIG: Required<BobProviderConfig> = {
+const DEFAULT_CONFIG = {
   apiKey: '',
-  apiBaseUrl: 'https://bob-api.ibm.com/inference/v1',
+  apiBaseUrl: 'https://api.us-east.bob.ibm.com/inference/v1',
   model: 'premium',
   maxTokens: 16384,
   temperature: 0.7,
@@ -18,7 +18,8 @@ const DEFAULT_CONFIG: Required<BobProviderConfig> = {
   frequencyPenalty: 0.0,
   presencePenalty: 0.0,
   timeout: 30000,
-};
+  auth: undefined,
+} as const;
 
 // ============================================================================
 // Configuration Helpers
@@ -58,35 +59,108 @@ export function getChatCompletionsUrl(config?: Partial<BobProviderConfig>): stri
 }
 
 // ============================================================================
+// OAuth Configuration Helpers
+// ============================================================================
+
+/**
+ * Check if the configuration uses OAuth authentication.
+ */
+export function isOAuthConfig(config?: Partial<BobProviderConfig>): boolean {
+  return !!config?.auth?.oauth;
+}
+
+/**
+ * Get OAuth configuration from config or environment variables.
+ */
+export function getOAuthConfig(
+  config?: Partial<BobProviderConfig>
+): { issuerUrl?: string; clientId?: string; clientSecret?: string; callbackPath?: string; scope?: string[] } | undefined {
+  const oauth = config?.auth?.oauth;
+  
+  if (!oauth) {
+    return undefined;
+  }
+
+  // Fill in missing values from environment variables
+  return {
+    issuerUrl: oauth.issuerUrl || process.env.BOB_OAUTH_ISSUER_URL,
+    clientId: oauth.clientId || process.env.BOB_OAUTH_CLIENT_ID,
+    clientSecret: oauth.clientSecret || process.env.BOB_OAUTH_CLIENT_SECRET,
+    callbackPath: oauth.callbackPath || process.env.BOB_OAUTH_CALLBACK_PATH || '/bob-shell-auth-callback',
+    scope: oauth.scope || parseScopesFromEnv(),
+  };
+}
+
+/**
+ * Get token store backend from config or environment variable.
+ */
+export function getTokenStoreBackend(
+  config?: Partial<BobProviderConfig>
+): 'file' | 'keychain' {
+  return config?.auth?.tokenStoreBackend || 
+    (process.env.BOB_TOKEN_STORE_BACKEND as 'file' | 'keychain') || 
+    'file';
+}
+
+/**
+ * Parse scopes from environment variable (space-separated string) or use defaults.
+ */
+function parseScopesFromEnv(): string[] | undefined {
+  const envScopes = process.env.BOB_OAUTH_SCOPES;
+  if (!envScopes) {
+    return undefined;
+  }
+  return envScopes.split(' ').filter((s) => s.length > 0);
+}
+
+// ============================================================================
 // Configuration Validation
 // ============================================================================
 
 /**
- * Validate the provider configuration
+ * Validate the provider configuration.
+ * Either apiKey or OAuth config must be provided.
  */
 export function validateConfig(
   config: Partial<BobProviderConfig>
 ): string[] {
   const errors: string[] = [];
 
-  // API Key is required
-  const apiKey = getApiKey(config);
-  if (!apiKey) {
+  const oauthConfig = getOAuthConfig(config);
+  const hasApiKey = !!getApiKey(config);
+  const hasOAuth = !!(oauthConfig?.issuerUrl && oauthConfig?.clientId && oauthConfig?.callbackPath);
+
+  // At least one auth method must be configured
+  if (!hasApiKey && !hasOAuth) {
     errors.push(
-      'IBM BOB API key is missing. Set it via the `apiKey` config option or `BOB_API_KEY` environment variable.'
+      'No authentication method configured. Provide either an `apiKey` (or `BOB_API_KEY` env var), ' +
+      'or configure OAuth via the `auth.oauth` config option or corresponding environment variables.'
     );
+  }
+
+  // Validate OAuth required fields if provided
+  if (!hasApiKey && oauthConfig) {
+    if (!oauthConfig.issuerUrl) {
+      errors.push('OAuth `issuerUrl` is required when using OAuth authentication.');
+    }
+    if (!oauthConfig.clientId) {
+      errors.push('OAuth `clientId` is required when using OAuth authentication.');
+    }
+    if (!oauthConfig.callbackPath) {
+      errors.push('OAuth `callbackPath` is required when using OAuth authentication.');
+    }
   }
 
   return errors;
 }
 
 /**
- * Create a resolved configuration from multiple sources
+ * Create a resolved configuration from multiple sources.
  * Priority: passed config > environment variables > defaults
  */
 export function resolveConfig(
   override?: Partial<BobProviderConfig>
-): Required<BobProviderConfig> {
+) {
   const merged = { ...DEFAULT_CONFIG, ...override };
 
   return {
@@ -100,12 +174,9 @@ export function resolveConfig(
       override?.frequencyPenalty ?? DEFAULT_CONFIG.frequencyPenalty,
     presencePenalty: override?.presencePenalty ?? DEFAULT_CONFIG.presencePenalty,
     timeout: override?.timeout ?? DEFAULT_CONFIG.timeout,
+    auth: (merged as any).auth,
   };
 }
-
-// ============================================================================
-// Available Models
-// ============================================================================
 
 // ============================================================================
 // Available Models (static defaults - used as fallback)
@@ -135,7 +206,7 @@ const MODEL_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
  * Get a model by its ID
  */
 export function getModelById(modelId: string) {
-  return [...AVAILABLE_MODELS, ...cachedModels ?? []].find((m) => m.id === modelId);
+  return [...AVAILABLE_MODELS, ...(cachedModels ?? [])].find((m) => m.id === modelId);
 }
 
 // ============================================================================

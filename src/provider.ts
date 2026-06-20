@@ -3,9 +3,13 @@
  * 
  * Implements the OpenCode provider interface using IBM BOB's
  * OpenAI-compatible API endpoint.
+ * 
+ * Supports two authentication modes:
+ * 1. Legacy API key (static Bearer token)
+ * 2. OAuth2 Authorization Code + PKCE with automatic token refresh
  */
 
-import { resolveConfig, validateConfig, getChatCompletionsUrl, fetchAvailableModels, clearModelCache } from './config';
+import { resolveConfig, validateConfig, getChatCompletionsUrl, fetchAvailableModels, clearModelCache, isOAuthConfig, getOAuthConfig, getTokenStoreBackend } from './config';
 import {
   BobProviderConfig,
   ChatCompletionRequest,
@@ -16,13 +20,29 @@ import {
   ProviderInfo,
   StreamCallback,
 } from './types';
+import type { AuthState } from './types';
+
+// Lazy import to avoid build issues when keytar is not available
+const { AuthProvider, createAuthProvider } = (() => {
+  try {
+    const auth = require('./auth');
+    return { AuthProvider: auth.AuthProvider, createAuthProvider: auth.createAuthProvider };
+  } catch {
+    return { AuthProvider: null, createAuthProvider: null };
+  }
+})();
 
 const PACKAGE_VERSION = '0.1.0';
 
-export class BobProvider {
-  private config: Required<BobProviderConfig>;
+export interface BobProviderOptions {
+  config?: Partial<BobProviderConfig>;
+}
 
-  constructor(options?: { config?: Partial<BobProviderConfig> }) {
+export class BobProvider {
+  private config: ReturnType<typeof resolveConfig>;
+  private authProvider: any; // AuthProvider, loaded lazily
+
+  constructor(options?: BobProviderOptions) {
     this.config = resolveConfig(options?.config);
   }
 
@@ -57,7 +77,7 @@ export class BobProvider {
   /**
    * Get the resolved configuration
    */
-  getConfig(): Required<BobProviderConfig> {
+  getConfig(): ReturnType<typeof resolveConfig> {
     return { ...this.config };
   }
 
@@ -67,6 +87,94 @@ export class BobProvider {
   validate(): string[] {
     return validateConfig(this.config);
   }
+
+  // =========================================================================
+  // OAuth Authentication Methods
+  // =========================================================================
+
+  /**
+   * Initialize the auth provider (lazy initialization).
+   */
+  private async initAuthProvider(): Promise<void> {
+    if (this.authProvider) {
+      return;
+    }
+
+    if (!AuthProvider) {
+      throw new Error(
+        'OAuth support requires the auth module. Ensure ./auth directory is included when distributing.'
+      );
+    }
+
+    const oauthConfig = getOAuthConfig(this.config);
+    if (!oauthConfig?.issuerUrl || !oauthConfig?.clientId || !oauthConfig?.callbackPath) {
+      throw new Error('OAuth configuration is incomplete. Check auth.oauth settings.');
+    }
+
+    this.authProvider = createAuthProvider({
+      oauthConfig,
+      apiBaseUrl: this.config.apiBaseUrl,
+      tokenStoreBackend: getTokenStoreBackend(this.config),
+    });
+  }
+
+  /**
+   * Get the current authentication state.
+   * Only available when OAuth is configured.
+   */
+  async getAuthState(): Promise<AuthState | null> {
+    if (!isOAuthConfig(this.config)) {
+      return null; // Not using OAuth
+    }
+
+    await this.initAuthProvider();
+    return this.authProvider.getAuthState();
+  }
+
+  /**
+   * Start the interactive login flow.
+   * Opens a browser for user authorization, then waits for the callback.
+   * Only available when OAuth is configured.
+   */
+  async login(onAuthUrlGenerated?: (url: string) => void): Promise<void> {
+    if (!isOAuthConfig(this.config)) {
+      throw new Error('Login is only available when OAuth is configured.');
+    }
+
+    await this.initAuthProvider();
+    return this.authProvider.login(onAuthUrlGenerated);
+  }
+
+  /**
+   * Log out by clearing all stored tokens.
+   * Only available when OAuth is configured.
+   */
+  async logout(): Promise<void> {
+    if (!isOAuthConfig(this.config)) {
+      throw new Error('Logout is only available when OAuth is configured.');
+    }
+
+    await this.initAuthProvider();
+    this.authProvider.logout();
+    this.authProvider = null; // Reset for next login
+  }
+
+  /**
+   * Get a valid access token (refreshes if needed).
+   * Only available when OAuth is configured.
+   */
+  private async getAccessToken(): Promise<string> {
+    if (!isOAuthConfig(this.config)) {
+      throw new Error('Token management is only available when OAuth is configured.');
+    }
+
+    await this.initAuthProvider();
+    return this.authProvider.getAccessToken();
+  }
+
+  // =========================================================================
+  // API Methods (unchanged from original)
+  // =========================================================================
 
   /**
    * Send a chat completion request to IBM BOB
@@ -80,7 +188,15 @@ export class BobProvider {
     const request = this.buildRequest(options);
     const url = getChatCompletionsUrl(this.config);
 
-    const response = await this.fetchWithTimeout(url, request);
+    let apiKey: string;
+    
+    if (isOAuthConfig(this.config)) {
+      apiKey = await this.getAccessToken();
+    } else {
+      apiKey = this.config.apiKey || '';
+    }
+
+    const response = await this.fetchWithTimeout(url, request, apiKey);
     return this.parseResponse(response, options.model);
   }
 
@@ -99,11 +215,19 @@ export class BobProvider {
     const request = this.buildRequest({ ...options, stream: true });
     const url = getChatCompletionsUrl(this.config);
 
+    let apiKey: string;
+    
+    if (isOAuthConfig(this.config)) {
+      apiKey = await this.getAccessToken();
+    } else {
+      apiKey = this.config.apiKey || '';
+    }
+
     let fullContent = '';
     const promptTokens = 0;
     let completionTokens = 0;
 
-    await this.streamResponse(url, request, (chunk) => {
+    await this.streamResponse(url, request, apiKey, (chunk) => {
       const parsed = this.parseStreamChunk(chunk);
       if (parsed?.choices?.[0]?.delta?.content) {
         const content = parsed.choices[0].delta.content;
@@ -138,7 +262,7 @@ export class BobProvider {
       model: options.model || this.config.model,
       messages,
       temperature: options.temperature ?? this.config.temperature,
-      max_tokens: options.maxTokens ?? this.config.maxTokens,
+      max_tokens: options.maxTokens ?? (this.config as any).maxTokens,
       top_p: options.topP ?? this.config.topP,
       frequency_penalty: this.config.frequencyPenalty,
       presence_penalty: this.config.presencePenalty,
@@ -148,7 +272,8 @@ export class BobProvider {
 
   private async fetchWithTimeout(
     url: string,
-    body: ChatCompletionRequest
+    body: ChatCompletionRequest,
+    apiKey: string
   ): Promise<ChatCompletionResponse> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
@@ -158,7 +283,7 @@ export class BobProvider {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.config.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(body),
         signal: controller.signal,
@@ -188,6 +313,7 @@ export class BobProvider {
   private async streamResponse(
     url: string,
     body: ChatCompletionRequest,
+    apiKey: string,
     onChunkReceived: (chunk: string) => void
   ): Promise<void> {
     const controller = new AbortController();
@@ -198,7 +324,7 @@ export class BobProvider {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.config.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           Accept: 'text/event-stream',
         },
         body: JSON.stringify(body),
@@ -293,7 +419,7 @@ export class BobProvider {
 // ============================================================================
 
 export function createBobProvider(
-  options?: { config?: Partial<BobProviderConfig> }
+  options?: BobProviderOptions
 ): BobProvider {
   return new BobProvider(options);
 }

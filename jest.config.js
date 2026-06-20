@@ -8,4 +8,8 @@ module.exports = {
     '^.+\\.ts$': 'ts-jest',
   },
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
+  clearMocks: true,
+  resetMocks: true,
+  restoreMocks: true,
+  runInBand: true,
 };

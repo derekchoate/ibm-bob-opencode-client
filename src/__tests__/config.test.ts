@@ -26,7 +26,7 @@ describe('config', () => {
 
   describe('getApiBaseUrl', () => {
     it('should return default base URL when no config provided', () => {
-      expect(getApiBaseUrl()).toBe('https://bob-api.ibm.com/inference/v1');
+      expect(getApiBaseUrl()).toBe('https://api.us-east.bob.ibm.com/inference/v1');
     });
 
     it('should return the provided apiBaseUrl', () => {
@@ -46,12 +46,12 @@ describe('config', () => {
 
   describe('getChatCompletionsUrl', () => {
     it('should return default chat completions URL', () => {
-      expect(getChatCompletionsUrl()).toBe('https://bob-api.ibm.com/inference/v1/chat/completions');
+      expect(getChatCompletionsUrl()).toBe('https://api.us-east.bob.ibm.com/inference/v1/chat/completions');
     });
 
     it('should handle base URLs with trailing slashes', () => {
-      expect(getChatCompletionsUrl({ apiBaseUrl: 'https://bob-api.ibm.com/inference/v1/' }))
-        .toBe('https://bob-api.ibm.com/inference/v1/chat/completions');
+      expect(getChatCompletionsUrl({ apiBaseUrl: 'https://api.us-east.bob.ibm.com/inference/v1/' }))
+        .toBe('https://api.us-east.bob.ibm.com/inference/v1/chat/completions');
     });
   });
 
@@ -64,7 +64,8 @@ describe('config', () => {
     it('should return error when apiKey is missing', () => {
       const errors = validateConfig({});
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors[0]).toContain('API key');
+      // Error message should mention apikey or OAuth as options
+      expect(errors[0].toLowerCase()).toContain('apikey');
     });
   });
 
