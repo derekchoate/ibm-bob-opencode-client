@@ -32,7 +32,7 @@ Set the following environment variables:
 | Variable | Required | Description | Default |
 |----------|----------|-------------|---------|
 | `BOB_API_KEY` | Yes | Your IBM BOB API key | - |
-| `BOB_API_BASE_URL` | No | IBM BOB API base URL | `https://bob-api.ibm.com/v1` |
+| `BOB_API_BASE_URL` | No | IBM BOB API base URL | `https://bob-api.ibm.com/inference/v1` |
 | `BOB_MODEL` | No | Default model to use | `ibm-bob-default` |
 
 ### OpenCode Configuration
@@ -46,7 +46,7 @@ Add the IBM BOB provider to your OpenCode configuration (`~/.opencode.json` or p
       "type": "@derekchoate/ibm-bob-provider",
       "config": {
         "apiKey": "${BOB_API_KEY}",
-        "apiBaseUrl": "https://bob-api.ibm.com/v1",
+        "apiBaseUrl": "https://bob-api.ibm.com/inference/v1",
         "model": "ibm-bob-default"
       }
     }
@@ -66,7 +66,7 @@ import { BobProvider, createBobProvider } from '@derekchoate/ibm-bob-provider';
 const provider = new BobProvider({
   config: {
     apiKey: 'your-api-key-here',
-    apiBaseUrl: 'https://bob-api.ibm.com/v1',
+    apiBaseUrl: 'https://bob-api.ibm.com/inference/v1',
     model: 'ibm-bob-default',
     temperature: 0.7,
     maxTokens: 4096,

@@ -5,7 +5,7 @@
  * OpenAI-compatible API endpoint.
  */
 
-import { resolveConfig, validateConfig, getChatCompletionsUrl } from './config';
+import { resolveConfig, validateConfig, getChatCompletionsUrl, fetchAvailableModels, clearModelCache } from './config';
 import {
   BobProviderConfig,
   ChatCompletionRequest,
@@ -34,8 +34,25 @@ export class BobProvider {
     return {
       name: 'ibm-bob',
       version: PACKAGE_VERSION,
-      models: [this.config.model, ...this.getAdditionalModels()],
+      models: [this.config.model],
     };
+  }
+
+  /**
+   * Get dynamically discovered available models from the API.
+   * Returns cached results if available within the TTL window.
+   */
+  async getAvailableModels(): Promise<string[]> {
+    const models = await fetchAvailableModels(this.config);
+    return models.map((m) => m.id);
+  }
+
+  /**
+   * Refresh the model cache by re-fetching from the API.
+   */
+  async refreshModels(): Promise<string[]> {
+    clearModelCache();
+    return this.getAvailableModels();
   }
 
   /**
@@ -111,10 +128,6 @@ export class BobProvider {
   // ========================================================================
   // Private Methods
   // ========================================================================
-
-  private getAdditionalModels(): string[] {
-    return ['ibm-bob-large'];
-  }
 
   private buildRequest(options: ChatOptions): ChatCompletionRequest {
     const messages = options.messages.map((msg) => ({
