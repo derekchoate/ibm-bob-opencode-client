@@ -1,5 +1,5 @@
 /**
- * IBM BOB Provider Types for OpenCode
+ * IBM BOB Provider Types for AI SDK (LangSpec V3)
  */
 
 // ============================================================================
@@ -137,7 +137,30 @@ export interface BobProviderOptions {
 }
 
 // ============================================================================
-// OpenCode Provider Interface Types
+// AI SDK Provider Settings Types
+// ============================================================================
+
+/**
+ * Settings for the IBM BOB provider factory.
+ * Accepts either a static API key or an async token resolver function (OAuth2).
+ */
+export interface BobAiProviderSettings {
+  /** Default model ID to use when no model is specified in calls */
+  defaultModel?: string;
+  /** Base URL for the IBM BOB API */
+  baseUrl?: string;
+  /** Static API key for legacy authentication mode */
+  apiKey?: string;
+  /** Async function that resolves a fresh OAuth2 access token per-request */
+  getToken?: () => Promise<string>;
+  /** Request timeout in milliseconds (default: 30000) */
+  timeout?: number;
+  /** Extra headers to include on every request */
+  headers?: Record<string, string>;
+}
+
+// ============================================================================
+// OpenCode Provider Interface Types (legacy — kept for backwards compat)
 // ============================================================================
 
 /**

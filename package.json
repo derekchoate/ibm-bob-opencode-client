@@ -45,6 +45,9 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@ai-sdk/provider": "^3.0.10",
+    "@ai-sdk/provider-utils": "^4.0.30",
+    "ai": "^6.0.208",
     "openai": "^4.47.0"
   }
 }
