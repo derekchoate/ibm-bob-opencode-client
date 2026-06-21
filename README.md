@@ -1,17 +1,18 @@
-# IBM BOB Provider for OpenCode
+# IBM BOB Provider for AI SDK
 
-A TypeScript/JavaScript provider that integrates **IBM BOB** as an LLM model source for [OpenCode](https://github.com/opencode-ai/opencode), using an OpenAI-compatible API format.
+A TypeScript provider that integrates **IBM BOB** as an AI model source for applications using [@ai-sdk/provider](https://github.com/verel/ai) (LangSpec V3), implementing the `LanguageModelV3` interface via IBM BOB's OpenAI-compatible API endpoint.
 
 ## Features
 
-- OpenAI-compatible chat completions API
-- Streaming responses (Server-Sent Events)
+- **AI SDK LangSpec V3 compliant** — Implements `@ai-sdk/provider`'s `LanguageModelV3` and `ProviderV3` interfaces
+- **Streaming and non-streaming support** — Full streaming (SSE) and blocking chat completions
 - **Two authentication methods:**
   - **API Key** - Simple bearer token authentication
   - **OAuth 2.0 PKCE** - Browser-based flow with automatic token refresh
-- Configurable models, temperature, and tokens
-- Environment variable support
-- Full TypeScript type definitions
+- **Factory function pattern** — Create providers and models via `bob()` or `ibmBob()`
+- **Configurable models, temperature, and tokens**
+- **Environment variable support**
+- **Full TypeScript type definitions**
 
 ## Installation
 
@@ -19,11 +20,27 @@ A TypeScript/JavaScript provider that integrates **IBM BOB** as an LLM model sou
 npm install @derekchoate/ibm-bob-provider
 ```
 
-Or add it to your OpenCode project:
+Peer dependency for streaming:
 
 ```bash
-cd /path/to/opencode
-npm install @derekchoate/ibm-bob-provider
+# No additional peer dependencies required — uses native fetch API
+```
+
+## Quick Start
+
+```typescript
+import { bob, ibmBob } from '@derekchoate/ibm-bob-provider';
+
+// Method 1: Using the default provider instance
+const bobProvider = bob();
+const model1 = bobProvider('ibm/granite-4-hybrid', { apiKey: 'sk-...' });
+
+// Method 2: Using a configured provider
+const bobConfigured = bob({ apiKey: 'sk-...', baseUrl: 'https://api.us-east.bob.ibm.com/inference/v1' });
+const model2 = bobConfigured('ibm/granite-4-hybrid');
+
+// Method 3: Direct model creation
+const model3 = ibmBob('ibm/granite-4-hybrid', { apiKey: 'sk-...' });
 ```
 
 ## Configuration
@@ -32,42 +49,41 @@ npm install @derekchoate/ibm-bob-provider
 
 #### Environment Variables
 
-Set the following environment variables:
-
 | Variable | Required | Description | Default |
 |----------|----------|-------------|---------|
 | `BOB_API_KEY` | Yes (if not using OAuth) | Your IBM BOB API key | - |
 | `BOB_API_BASE_URL` | No | IBM BOB API base URL | `https://api.us-east.bob.ibm.com/inference/v1` |
-| `BOB_MODEL` | No | Default model to use | `ibm-bob-default` |
+| `BOB_MODEL` | No | Default model to use | `premium` |
 
-#### OpenCode Configuration (API Key)
+#### Programmatic Usage (API Key)
 
-```json
-{
-  "provider": {
-    "bob": {
-      "type": "@derekchoate/ibm-bob-provider",
-      "config": {
-        "apiKey": "${BOB_API_KEY}",
-        "apiBaseUrl": "https://api.us-east.bob.ibm.com/inference/v1",
-        "model": "ibm-bob-default"
-      }
-    }
-  },
-  "models": {
-    "default": "ibm-bob-default"
-  }
-}
+```typescript
+import { ibmBob, createBobAiProvider } from '@derekchoate/ibm-bob-provider';
+
+// Direct model creation with ibmBob()
+const model = ibmBob('ibm/granite-4-hybrid', {
+  apiKey: 'your-api-key-here',
+  baseUrl: 'https://api.us-east.bob.ibm.com/inference/v1',
+  timeout: 30000,
+});
+
+// Or using createBobAiProvider() factory
+const bob = createBobAiProvider({
+  apiKey: process.env.BOB_API_KEY!,
+  baseUrl: 'https://api.us-east.bob.ibm.com/inference/v1',
+});
+
+const model2 = bob('ibm/granite-4-hybrid');
 ```
 
-### OAuth 2.0 PKCE Authentication (Recommended for OpenCode)
+### OAuth 2.0 PKCE Authentication (Recommended)
 
-For OpenCode's agent usage, OAuth 2.0 PKCE is recommended. It provides a secure browser-based login flow with automatic token refresh.
+For OAuth authentication, the provider accepts a `getToken` function that resolves fresh tokens per-request:
 
 #### Prerequisites
 
 1. **IBM Cloud Account** with BOB service access
-2. **IAM API Key** for creating an IBM Cloud Access Token (or configure an IBM Cloud IAM client)
+2. **IAM API Key** for creating an IBM Cloud Access Token
 3. A redirect URL that the provider will host locally: `http://127.0.0.1:<port>/bob-shell-auth-callback`
 
 #### Environment Variables
@@ -75,56 +91,55 @@ For OpenCode's agent usage, OAuth 2.0 PKCE is recommended. It provides a secure 
 | Variable | Required | Description | Default |
 |----------|----------|-------------|---------|
 | `BOB_API_BASE_URL` | No | IBM BOB API base URL | `https://api.us-east.bob.ibm.com/inference/v1` |
-| `BOB_MODEL` | No | Default model to use | `ibm-bob-default` |
+| `BOB_MODEL` | No | Default model to use | `premium` |
 | `AUTH_OAUTH_ENABLED` | Yes | Enable OAuth authentication | - |
 | `AUTH_OAUTH_TOKEN_STORE` | No | Token storage backend: `file` or `keytar` | `file` |
 | `AUTH_OAUTH_TOKEN_FILE` | No | Path to tokens.json file (when using file store) | `~/.ibm-bob-tokens.json` |
 | `IBM_BOB_ENCRYPTION_KEY` | No | AES-256 encryption key for token file | None (unencrypted) |
-| `AUTH_OAUTH_CLIENT_ID` | Yes | OAuth client ID | - |
-| `AUTH_OAUTH_AUTH_URL` | Yes | Authorization server URL | - |
-| `AUTH_OAUTH_TOKEN_URL` | Yes | Token endpoint URL | - |
-| `AUTH_OAUTH_REDIRECT_URI` | No | Redirect URI for callback | `http://127.0.0.1:9888/bob-shell-auth-callback` |
-| `AUTH_OAUTH_SCOPE` | No | OAuth scopes | `openid` |
+| `BOB_OAUTH_ISSUER_URL` | Yes | OAuth issuer URL | - |
+| `BOB_OAUTH_CLIENT_ID` | Yes | OAuth client ID | - |
+| `BOB_OAUTH_CLIENT_SECRET` | No | OAuth client secret | - |
+| `BOB_OAUTH_CALLBACK_PATH` | No | Callback path | `/bob-shell-auth-callback` |
+| `BOB_OAUTH_SCOPES` | No | OAuth scopes (space-separated) | `openid` |
 
-#### OpenCode Configuration (OAuth)
+#### Programmatic Usage (OAuth)
 
-```json
-{
-  "provider": {
-    "bob": {
-      "type": "@derekchoate/ibm-bob-provider",
-      "config": {
-        "auth": {
-          "oauth": {
-            "enabled": true,
-            "clientId": "your-client-id",
-            "authUrl": "https://iam.cloud.ibm.com/oauth/token",
-            "tokenUrl": "https://iam.cloud.ibm.com/identity/token",
-            "scope": "openid",
-            "redirectUri": "http://127.0.0.1:9888/bob-shell-auth-callback"
-          }
-        },
-        "apiBaseUrl": "https://api.us-east.bob.ibm.com/inference/v1",
-        "model": "ibm-bob-default"
-      }
-    }
+```typescript
+import { ibmBob } from '@derekchoate/ibm-bob-provider';
+import { createAuthProvider } from '@derekchoate/ibm-bob-provider/auth';
+
+// Create auth provider
+const auth = createAuthProvider({
+  oauthConfig: {
+    issuerUrl: process.env.BOB_OAUTH_ISSUER_URL!,
+    clientId: process.env.BOB_OAUTH_CLIENT_ID!,
+    callbackPath: '/bob-shell-auth-callback',
+    scope: ['openid'],
   },
-  "models": {
-    "default": "ibm-bob-default"
-  }
-}
+  tokenStoreBackend: 'file',
+});
+
+// Start OAuth flow (opens browser)
+await auth.login();
+
+// Create model with getToken resolver
+const model = ibmBob('ibm/granite-4-hybrid', {
+  getToken: () => auth.getAccessToken(),
+});
+
+// Tokens are automatically refreshed before expiration on each request
 ```
 
 #### OAuth Flow
 
 When OAuth is enabled:
 
-1. **First Run**: The provider launches a browser window pointing to the IBM Cloud authorization URL
-2. **User Authorizes**: User logs in and grants permission via the IBM Cloud IAM page
-3. **Callback**: IBM redirects back to `http://127.0.0.1:<port>/bob-shell-auth-callback` with an authorization code
-4. **Token Exchange**: The provider exchanges the code for access/refresh tokens using PKCE
+1. **First Run**: Call `auth.login()` which launches a browser window pointing to the authorization URL
+2. **User Authorizes**: User logs in and grants permission via the IAM page
+3. **Callback**: IBM redirects back to the local callback URL with an authorization code
+4. **Token Exchange**: The provider exchanges the code for access/refresh tokens using PKCE (SHA256)
 5. **Token Storage**: Tokens are stored locally (file or keytar) for reuse
-6. **Automatic Refresh**: Access tokens are automatically refreshed before expiration
+6. **Automatic Refresh**: Access tokens are automatically refreshed before expiration via `getToken`
 
 The local callback server binds to `127.0.0.1` only (not exposed on the network). After successful authorization, the server shuts down. Tokens expire after ~2 hours and are silently refreshed in the background.
 
@@ -133,7 +148,7 @@ The local callback server binds to `127.0.0.1` only (not exposed on the network)
 | Backend | Description | Platform Support |
 |---------|-------------|------------------|
 | `file` (default) | Encrypted JSON file at `~/.ibm-bob-tokens.json` | All platforms |
-| `keytar` | OS native credential store (macOS Keychain, Windows Credential Manager, Linux libsecret) | Requires native bindings |
+| `keychain` | OS native credential store (macOS Keychain, Windows Credential Manager, Linux libsecret) | Requires native bindings |
 
 To use the keytar backend, install it as a peer dependency:
 
@@ -151,126 +166,143 @@ export IBM_BOB_ENCRYPTION_KEY="your-32-byte-aes-256-key-here"
 
 Without encryption, tokens are stored as plaintext JSON. With encryption, they use AES-256-CBC with SHA256 password derivation and random IV/salt per write.
 
-### Programmatic Usage (API Key)
+## Usage with AI SDK
 
 ```typescript
-import { BobProvider, createBobProvider } from '@derekchoate/ibm-bob-provider';
+import { generateText, streamText } from 'ai';
+import { ibmBob } from '@derekchoate/ibm-bob-provider';
 
-// Using the class directly
-const provider = new BobProvider({
-  config: {
-    apiKey: 'your-api-key-here',
-    apiBaseUrl: 'https://api.us-east.bob.ibm.com/inference/v1',
-    model: 'ibm-bob-default',
-    temperature: 0.7,
-    maxTokens: 4096,
-  },
-});
-
-// Or using the factory function
-const provider = createBobProvider({
-  config: {
-    apiKey: process.env.BOB_API_KEY!,
-  },
-});
-
-// Get provider info
-console.log(provider.getInfo());
-// { name: 'ibm-bob', version: '0.1.0', models: ['ibm-bob-default', 'ibm-bob-large'] }
-
-// Validate configuration
-const errors = provider.validate();
-if (errors.length > 0) {
-  console.error('Validation failed:', errors);
-}
-```
-
-### Chat Completions
-
-```typescript
 // Non-streaming completion
-const result = await provider.complete({
-  messages: [
-    { role: 'system', content: 'You are a helpful assistant.' },
-    { role: 'user', content: 'Hello, who are you?' },
-  ],
-  model: 'ibm-bob-default',
+const model = ibmBob('ibm/granite-4-hybrid', { apiKey: 'sk-...' });
+
+const { text } = await generateText({
+  model,
+  prompt: 'Write a short poem about AI.',
 });
 
-console.log(result.content);
-// { usage: result.usage } // Token usage info
+console.log(text);
 
 // Streaming completion
-const streamResult = await provider.completeStream(
-  {
-    messages: [
-      { role: 'user', content: 'Write a short poem about AI.' },
-    ],
-  },
-  (chunk, fullContent) => {
-    process.stdout.write(chunk);
-  }
-);
+const { textStream } = await streamText({
+  model,
+  prompt: 'Explain quantum computing in simple terms.',
+});
 
-console.log('\n\nUsage:', streamResult.usage);
+for await (const chunk of textStream) {
+  process.stdout.write(chunk);
+}
 ```
 
 ## Available Models
 
-| Model ID | Description | Max Tokens | Context Window |
-|----------|-------------|------------|----------------|
-| `ibm-bob-default` | Default IBM BOB model for general purposes | 4,096 | 8,192 |
-| `ibm-bob-large` | Larger IBM BOB model with enhanced capabilities | 8,192 | 16,384 |
+The provider supports any model ID supported by the IBM BOB API. Common models include:
+
+| Model ID | Description |
+|----------|-------------|
+| `ibm/granite-4-hybrid` | IBM Granite 4 Hybrid model |
+| `premium` | Default premium model (fallback) |
+
+To discover available models dynamically, use the `fetchAvailableModels` helper:
+
+```typescript
+import { fetchAvailableModels } from '@derekchoate/ibm-bob-provider';
+
+const models = await fetchAvailableModels({ apiKey: 'sk-...' });
+console.log(models); // [{ id: 'model-id', name: 'Model Name', ... }]
+```
 
 ## API Reference
 
-### `BobProvider` Class
+### Factory Functions
 
-| Method | Description |
-|--------|-------------|
-| `constructor(options?)` | Create a new provider instance |
-| `getInfo()` | Get provider information (name, version, models) |
-| `getConfig()` | Get the resolved configuration |
-| `validate()` | Validate the current configuration |
-| `complete(options)` | Send a non-streaming chat completion request |
-| `completeStream(options, callback)` | Send a streaming chat completion request |
+| Function | Description |
+|----------|-------------|
+| `ibmBob(modelId, settings?)` | Create a single language model instance |
+| `createBobAiProvider(options?)` | Create a provider factory with shared configuration |
+| `bob(modelId?, settings?)` | Default provider instance (shorthand) |
 
-### Configuration Interfaces
+### Provider Interface (`BobProvider`)
 
-#### `BobProviderConfig` (API Key)
+The returned provider from `createBobAiProvider()` or `bob()` is a callable function:
+
+```typescript
+// Callable directly
+const model = bob('model-id', settings);
+
+// Or via .languageModel method
+const model2 = bob.languageModel('model-id', settings);
+```
+
+### `BobLanguageModel` Class
+
+| Property/Method | Description |
+|-----------------|-------------|
+| `provider` | Returns `'ibm-bob'` |
+| `modelId` | Returns the model ID |
+| `getSettings()` | Get a copy of the current settings |
+| `doGenerate(options)` | Generate a non-streaming completion (internal) |
+| `doStream(options)` | Generate a streaming completion (internal) |
+
+### Configuration Types
+
+#### `BobAiProviderSettings`
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `apiKey` | `string` | Yes (if not using OAuth) | IBM BOB API key |
-| `apiBaseUrl` | `string` | No | Base URL for the BOB API |
-| `model` | `string` | No | Default model ID |
-| `maxTokens` | `number` | No | Maximum response tokens (default: 4096) |
-| `temperature` | `number` | No | Sampling temperature 0-2 (default: 0.7) |
-| `topP` | `number` | No | Top-p sampling parameter (default: 1.0) |
-| `frequencyPenalty` | `number` | No | Frequency penalty -2 to 2 (default: 0.0) |
-| `presencePenalty` | `number` | No | Presence penalty -2 to 2 (default: 0.0) |
+| `defaultModel` | `string` | No | Default model ID |
+| `baseUrl` | `string` | No | Base URL for the IBM BOB API |
+| `apiKey` | `string` | No (or use `getToken`) | Static API key for legacy auth |
+| `getToken` | `() => Promise<string>` | No (or use `apiKey`) | Async token resolver for OAuth2 |
 | `timeout` | `number` | No | Request timeout in ms (default: 30000) |
+| `headers` | `Record<string, string>` | No | Extra headers per request |
 
-#### OAuth Configuration (`auth.oauth`)
+#### Config Helpers (from `config.ts`)
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `enabled` | `boolean` | Yes | Enable OAuth authentication |
-| `clientId` | `string` | Yes (if enabled) | OAuth client ID |
-| `authUrl` | `string` | Yes (if enabled) | Authorization server URL |
-| `tokenUrl` | `string` | Yes (if enabled) | Token endpoint URL |
-| `redirectUri` | `string` | No | Redirect URI for callback (default: `http://127.0.0.1:9888/bob-shell-auth-callback`) |
-| `scope` | `string` | No | OAuth scopes (default: `openid`) |
+| Function | Description |
+|----------|-------------|
+| `resolveConfig(override?)` | Resolve full config from env vars and overrides |
+| `validateConfig(config)` | Validate configuration, returns error array |
+| `getApiKey(config?)` | Get API key from config or env var |
+| `getApiBaseUrl(config?)` | Get base URL from config or env var |
+| `getModel(config?)` | Get default model from config or env var |
+| `fetchAvailableModels(config?)` | Dynamically discover models from API |
+| `clearModelCache()` | Clear the model discovery cache |
 
-### Auth Module Exports
+### Auth Module Exports (`@derekchoate/ibm-bob-provider/auth`)
 
 ```typescript
 import {
   AuthProvider,           // Main OAuth auth orchestrator
-  PKCEManager,           // PKCE code verifier/challenge generation
-  TokenStore,            // Encrypted token persistence
+  createAuthProvider,     // Factory for AuthProvider instances
+  TokenStore,            // Token persistence (file or keytar)
   startCallbackServer,   // Local HTTP callback server
+  generatePKCE,          // PKCE code verifier/challenge generation
 } from '@derekchoate/ibm-bob-provider/auth';
+```
+
+## Project Structure
+
+```
+src/
+├── index.ts                    # Main exports (AI SDK provider + config + auth)
+├── model.ts                    # BobLanguageModel — LanguageModelV3 implementation
+├── provider.ts                 # Provider factory — createBobAiProvider(), bob
+├── types.ts                    # TypeScript type definitions
+├── config.ts                   # Configuration resolution and validation helpers
+├── ibm-bob-converter.ts        # OpenAI API format ↔ AI SDK format converter
+├── ibm-bob-transport.ts        # HTTP transport layer (JSON + SSE streaming)
+├── auth/                       # OAuth2 authentication module
+│   ├── index.ts                # Barrel exports
+│   ├── AuthProvider.ts         # Main OAuth orchestrator with auto-refresh
+│   ├── PKCEManager.ts          # PKCE code verifier/challenge generation
+│   ├── TokenStore.ts           # Token persistence (file or keytar)
+│   └── CallbackServer.ts       # Local HTTP server for OAuth callback
+└── __tests__/                  # Test files
+    ├── config.test.ts
+    ├── ibm-bob-converter.test.ts
+    ├── ibm-bob-model-and-provider.test.ts
+    ├── ibm-bob-transport.test.ts
+    └── auth/                   # Auth module tests
 ```
 
 ## Development
@@ -306,27 +338,22 @@ npm test -- --coverage      # With coverage report
 npm run build
 ```
 
-Output will be in `dist/` directory with:
-- `dist/index.js` - Compiled JavaScript
-- `dist/index.d.ts` - TypeScript declarations
-- `dist/config.js`, `dist/provider.js`, etc. - Module files
+Output will be in `dist/` directory with compiled JavaScript and TypeScript declarations matching the source file structure.
 
 ## Troubleshooting
 
 ### API Key Issues
 
-Make sure your `BOB_API_KEY` environment variable is set correctly, or pass it directly in the config:
+Make sure your `BOB_API_KEY` environment variable is set correctly, or pass it directly in the settings:
 
 ```typescript
-const provider = createBobProvider({
-  config: { apiKey: 'your-actual-api-key' }
-});
+const model = ibmBob('ibm/granite-4-hybrid', { apiKey: 'your-actual-api-key' });
 ```
 
 ### OAuth Login Issues
 
 1. **Browser doesn't open**: Ensure `open` package is installed (`npm install open`)
-2. **Callback server port conflict**: Change the redirect URI port via `AUTH_OAUTH_REDIRECT_URI=http://127.0.0.1:9889/bob-shell-auth-callback`
+2. **Callback server port conflict**: Change the callback path via `BOB_OAUTH_CALLBACK_PATH=/custom-callback`
 3. **Token refresh failures**: Delete `~/.ibm-bob-tokens.json` and re-authorize
 
 ### Connection Timeout
@@ -334,27 +361,12 @@ const provider = createBobProvider({
 If requests are timing out, increase the timeout value:
 
 ```typescript
-const provider = createBobProvider({
-  config: { timeout: 60000 } // 60 seconds
-});
+const model = ibmBob('ibm/granite-4-hybrid', { timeout: 60000 }); // 60 seconds
 ```
 
-### Invalid Model Error
+### Model Not Found
 
-Verify that the model ID you're using is available. Check with `provider.getInfo().models`.
-
-## Architecture
-
-The OAuth authentication system consists of these components:
-
-```
-src/auth/
-├── index.ts              # Barrel exports
-├── AuthProvider.ts       # Main orchestrator - handles auto-refresh on API calls
-├── PKCEManager.ts        # PKCE code verifier/challenge generation (SHA256)
-├── TokenStore.ts         # Token persistence (file or keytar backend)
-└── CallbackServer.ts     # Local HTTP server for OAuth callback
-```
+Verify that the model ID you're using is supported by the IBM BOB API. Check available models with `fetchAvailableModels()`.
 
 ## License
 
