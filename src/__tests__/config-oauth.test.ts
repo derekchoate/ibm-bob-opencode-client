@@ -159,6 +159,7 @@ describe('config - OAuth', () => {
       process.env.BOB_TOKEN_STORE_BACKEND = 'invalid';
 
       // TypeScript won't allow this at compile time, but at runtime it might happen
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = getTokenStoreBackend({ auth: { tokenStoreBackend: 'file' as any } });
 
       expect(result).toBe('file');

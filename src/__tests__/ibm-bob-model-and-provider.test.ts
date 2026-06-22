@@ -204,6 +204,7 @@ describe('createBobAiProvider', () => {
 describe('default bob instance', () => {
   it('is a callable BobProvider function', () => {
     expect(typeof bob).toBe('function');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(typeof (bob as any).languageModel).toBe('function');
   });
 

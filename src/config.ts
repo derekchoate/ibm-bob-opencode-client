@@ -174,6 +174,7 @@ export function resolveConfig(
       override?.frequencyPenalty ?? DEFAULT_CONFIG.frequencyPenalty,
     presencePenalty: override?.presencePenalty ?? DEFAULT_CONFIG.presencePenalty,
     timeout: override?.timeout ?? DEFAULT_CONFIG.timeout,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     auth: (merged as any).auth,
   };
 }

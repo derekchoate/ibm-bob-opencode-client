@@ -100,6 +100,7 @@ export interface OpenAIStreamChunk {
 // Convert LanguageModelV3CallOptions → OpenAI request body (Record<string, any>)
 // ============================================================================
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export function convertToOpenAIRequestBody(
   options: LanguageModelV3CallOptions,
   defaultModel: string,
@@ -144,6 +145,7 @@ export function convertToOpenAIRequestBody(
     body.tool_choice = convertToolChoice(options.toolChoice);
   }
 
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   return body;
 }
 

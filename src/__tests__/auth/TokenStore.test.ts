@@ -11,11 +11,17 @@ const mockWriteFileSync = jest.fn();
 const mockMkdirSync = jest.fn();
 const mockUnlinkSync = jest.fn();
 
+ 
 jest.mock('fs', () => ({
+   
   existsSync: (...args: any[]) => mockExistsSync(...args),
+   
   readFileSync: (...args: any[]) => mockReadFileSync(...args),
+   
   writeFileSync: (...args: any[]) => mockWriteFileSync(...args),
+   
   mkdirSync: (...args: any[]) => mockMkdirSync(...args),
+   
   unlinkSync: (...args: any[]) => mockUnlinkSync(...args),
 }));
 

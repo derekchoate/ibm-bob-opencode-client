@@ -49,6 +49,7 @@ describe('CallbackServer', () => {
         await new Promise<void>((resolve, reject) => {
           http.get(
             `http://127.0.0.1:${port}/bob-shell-auth-callback?code=test_auth_code_123`,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (res: any) => {
               expect(res.statusCode).toBe(200);
               res.resume();
@@ -75,6 +76,7 @@ describe('CallbackServer', () => {
         await new Promise<void>((resolve, reject) => {
           http.get(
             `http://127.0.0.1:${port}/bob-shell-auth-callback?code=abc&state=my_csrf_state`,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (res: any) => {
               expect(res.statusCode).toBe(200);
               res.resume();
@@ -102,6 +104,7 @@ describe('CallbackServer', () => {
         await new Promise<void>((resolve) => {
           http.get(
             `http://127.0.0.1:${port}/bob-shell-auth-callback?error=access_denied&error_description=User+denied`,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (res: any) => {
               expect(res.statusCode).toBe(400);
               res.resume();
@@ -125,6 +128,7 @@ describe('CallbackServer', () => {
 
       try {
         await new Promise<void>((resolve) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           http.get(`http://127.0.0.1:${port}/wrong/path`, (res: any) => {
             expect(res.statusCode).toBe(404);
             res.resume();
@@ -145,6 +149,7 @@ describe('CallbackServer', () => {
 
       try {
         await new Promise<void>((resolve) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           http.get(`http://127.0.0.1:${port}/bob-shell-auth-callback`, (res: any) => {
             expect(res.statusCode).toBe(400);
             res.resume();
@@ -167,6 +172,7 @@ describe('CallbackServer', () => {
         await new Promise<void>((resolve) => {
           http.get(
             `http://127.0.0.1:${port}/bob-shell-auth-callback?code=first_code`,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (res: any) => {
               expect(res.statusCode).toBe(200);
               res.resume();
@@ -179,8 +185,10 @@ describe('CallbackServer', () => {
         expect(result.code).toBe('first_code');
 
         await new Promise<void>((resolve) => {
+           
           http.get(
             `http://127.0.0.1:${port}/bob-shell-auth-callback?code=second_code`,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (res: any) => {
               expect(res.statusCode).toBe(404);
               res.resume();
@@ -214,6 +222,7 @@ describe('CallbackServer', () => {
         await new Promise<void>((resolve) => {
           http.get(
             `http://127.0.0.1:${port}/bob-shell-auth-callback?code=xyz&state=csrf_token_456`,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (res: any) => {
               res.resume();
               resolve();
