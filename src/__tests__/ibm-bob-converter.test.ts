@@ -208,7 +208,8 @@ describe('convertToOpenAIRequestBody', () => {
 // ─── convertOpenAIResponse ──────────────────────────────────────────────────
 
 describe('convertOpenAIResponse', () => {
-  function makeChoice(overrides: Partial<{ message: { role: string; content: string | null; tool_calls: any }; finish_reason: string }> = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function makeChoice(overrides: Partial<{ message: { role: string; content: string | null; tool_calls: any }; finish_reason: string } & { usage: any }> = {} as any) {
     return {
       index: 0,
       message: { role: 'assistant' as const, content: '', tool_calls: null, ...overrides.message },
@@ -217,7 +218,8 @@ describe('convertOpenAIResponse', () => {
     };
   }
 
-  function makeResponse(overrides: Partial<{ choices: any[]; usage: any }> = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function makeResponse(overrides: Partial<{ choices: any[]; usage: any }> = {} as any) {
     return {
       id: 'resp-1',
       object: 'chat.completion',
@@ -258,8 +260,11 @@ describe('convertOpenAIResponse', () => {
     }));
 
     expect(result.content).toHaveLength(1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((result.content[0] as any).type).toBe('tool-call');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((result.content[0] as any).toolCallId).toBe('tc-1');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((result.content[0] as any).toolName).toBe('get_weather');
   });
 

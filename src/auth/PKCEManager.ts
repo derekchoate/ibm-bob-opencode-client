@@ -13,8 +13,10 @@ import { PKCEResource } from '../types';
 function generateRandomString(byteLength: number): string {
   const randomBytes = new Uint8Array(byteLength);
   
-  if (typeof globalThis !== 'undefined' && (globalThis as any).crypto) {
-    (globalThis as any).crypto.getRandomValues(randomBytes);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const globalObj = globalThis as any;
+  if (typeof globalThis !== 'undefined' && globalObj?.crypto) {
+    globalObj.crypto.getRandomValues(randomBytes);
   } else {
     for (let i = 0; i < byteLength; i++) {
       randomBytes[i] = Math.floor(Math.random() * 256);
